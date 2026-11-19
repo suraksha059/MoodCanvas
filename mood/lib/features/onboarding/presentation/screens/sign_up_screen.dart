@@ -1,0 +1,555 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../providers/account_setup_provider.dart';
+import '../theme/onboarding_colors.dart';
+import '../widgets/social_brand_icons.dart';
+
+/// Sign up screen matching 6_Light_sign up blank form,
+/// 7_Light_sign up filled form, and 8_Light_sign up loading.
+class SignUpScreen extends ConsumerStatefulWidget {
+  const SignUpScreen({super.key});
+
+  @override
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends ConsumerState<SignUpScreen>
+    with SingleTickerProviderStateMixin {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _agreedToTerms = false;
+  bool _isLoading = false;
+
+  late final AnimationController _spinnerController;
+  Timer? _loadingTimer;
+
+  bool get _isFormReady =>
+      _emailController.text.trim().isNotEmpty &&
+      _passwordController.text.isNotEmpty &&
+      _agreedToTerms;
+
+  @override
+  void initState() {
+    super.initState();
+    _spinnerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _emailController.addListener(_onFieldChanged);
+    _passwordController.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    setState(() {});
+  }
+
+  void _startSignUp() {
+    if (_isLoading) return;
+    FocusScope.of(context).unfocus();
+
+    final email = _emailController.text.trim();
+    if (email.isNotEmpty) {
+      ref.read(accountSetupProvider.notifier).setEmail(email);
+    }
+
+    setState(() => _isLoading = true);
+    _spinnerController.repeat();
+
+    _loadingTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      _spinnerController.stop();
+      context.go('/account-setup');
+    });
+  }
+
+  void _onSignInTap() {
+    context.go('/signin');
+  }
+
+  @override
+  void dispose() {
+    _loadingTimer?.cancel();
+    _spinnerController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: OnboardingColors.white,
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top Bar with Back Arrow
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: () => context.go('/welcome'),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: OnboardingColors.textDark,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Scrollable Form Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Join MoodCanvas Today ✨',
+                            style: AppTypography.displayMedium.copyWith(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              color: OnboardingColors.textDark,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start tracking your moods and earn achievement badges.',
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontSize: 14.5,
+                              height: 1.5,
+                              color: OnboardingColors.textMuted,
+                            ),
+                          ),
+
+                          const SizedBox(height: 28),
+
+                          // Email Field
+                          Text(
+                            'Email',
+                            style: AppTypography.titleMedium.copyWith(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: OnboardingColors.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInputField(
+                            controller: _emailController,
+                            hintText: 'Email',
+                            prefixIcon: Icons.mail_outline_rounded,
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Password Field
+                          Text(
+                            'Password',
+                            style: AppTypography.titleMedium.copyWith(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: OnboardingColors.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInputField(
+                            controller: _passwordController,
+                            hintText: 'Password',
+                            prefixIcon: Icons.lock_outline_rounded,
+                            obscureText: _obscurePassword,
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() => _obscurePassword = !_obscurePassword);
+                              },
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 20,
+                                color: OnboardingColors.textMuted,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Terms & Conditions Checkbox
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _agreedToTerms = !_agreedToTerms);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: 21,
+                                  height: 21,
+                                  decoration: BoxDecoration(
+                                    color: _agreedToTerms
+                                        ? OnboardingColors.primaryGreen
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(
+                                      color: OnboardingColors.primaryGreen,
+                                      width: 1.8,
+                                    ),
+                                  ),
+                                  child: _agreedToTerms
+                                      ? const Icon(
+                                          Icons.check_rounded,
+                                          size: 15,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontSize: 13.5,
+                                        color: OnboardingColors.textDark,
+                                      ),
+                                      children: [
+                                        const TextSpan(text: 'I agree to MoodCanvas '),
+                                        TextSpan(
+                                          text: 'Terms & Conditions.',
+                                          style: TextStyle(
+                                            color: OnboardingColors.primaryGreen,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Already have an account? Sign in
+                          Center(
+                            child: GestureDetector(
+                              onTap: _onSignInTap,
+                              child: RichText(
+                                text: TextSpan(
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontSize: 14,
+                                    color: OnboardingColors.textDark,
+                                  ),
+                                  children: const [
+                                    TextSpan(text: 'Already have an account? '),
+                                    TextSpan(
+                                      text: 'Sign in',
+                                      style: TextStyle(
+                                        color: OnboardingColors.primaryGreen,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 26),
+
+                          // "or continue with" Divider
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Divider(
+                                  color: OnboardingColors.borderLight,
+                                  thickness: 1,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                child: Text(
+                                  'or continue with',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontSize: 13,
+                                    color: OnboardingColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                              const Expanded(
+                                child: Divider(
+                                  color: OnboardingColors.borderLight,
+                                  thickness: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          // 4 Social Icon Pill Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _SocialPillIconButton(
+                                  icon: const GoogleLogoIcon(size: 20),
+                                  onTap: _startSignUp,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _SocialPillIconButton(
+                                  icon: const Icon(
+                                    Icons.apple,
+                                    size: 23,
+                                    color: OnboardingColors.textDark,
+                                  ),
+                                  onTap: _startSignUp,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _SocialPillIconButton(
+                                  icon: const FacebookLogoIcon(size: 22),
+                                  onTap: _startSignUp,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _SocialPillIconButton(
+                                  icon: const XLogoIcon(size: 18),
+                                  onTap: _startSignUp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Bottom Sign up Button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _startSignUp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isFormReady
+                              ? OnboardingColors.primaryGreen
+                              : const Color(0xFF6B9345),
+                          foregroundColor: OnboardingColors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        child: Text(
+                          'Sign up',
+                          style: AppTypography.button.copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: OnboardingColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Loading Overlay (8_Light_sign up loading)
+            if (_isLoading)
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 240,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 32,
+                        horizontal: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: OnboardingColors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _spinnerController,
+                            builder: (context, child) {
+                              return Transform.rotate(
+                                angle: _spinnerController.value * 2 * math.pi,
+                                child: child,
+                              );
+                            },
+                            child: const SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: CustomPaint(
+                                painter: _GreenArcSpinnerPainter(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Sign up...',
+                            style: AppTypography.titleMedium.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: OnboardingColors.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData prefixIcon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    Widget? suffixIcon,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: AppTypography.bodyLarge.copyWith(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: OnboardingColors.textDark,
+      ),
+      cursorColor: OnboardingColors.primaryGreen,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          fontSize: 14.5,
+          color: OnboardingColors.textLight,
+        ),
+        filled: true,
+        fillColor: OnboardingColors.backgroundLight,
+        prefixIcon: Icon(
+          prefixIcon,
+          size: 20,
+          color: OnboardingColors.textDark.withValues(alpha: 0.7),
+        ),
+        suffixIcon: suffixIcon,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: OnboardingColors.primaryGreen,
+            width: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialPillIconButton extends StatelessWidget {
+  final Widget icon;
+  final VoidCallback onTap;
+
+  const _SocialPillIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: OnboardingColors.white,
+          side: const BorderSide(color: OnboardingColors.borderLight, width: 1.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          padding: EdgeInsets.zero,
+        ),
+        child: Center(child: icon),
+      ),
+    );
+  }
+}
+
+class _GreenArcSpinnerPainter extends CustomPainter {
+  const _GreenArcSpinnerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    const strokeWidth = 5.5;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: 2 * math.pi,
+        colors: [
+          OnboardingColors.primaryGreen.withValues(alpha: 0.0),
+          OnboardingColors.primaryGreen.withValues(alpha: 0.35),
+          OnboardingColors.primaryGreen,
+        ],
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(rect);
+
+    canvas.drawArc(
+      rect.deflate(strokeWidth / 2),
+      0.15 * math.pi,
+      1.65 * math.pi,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
